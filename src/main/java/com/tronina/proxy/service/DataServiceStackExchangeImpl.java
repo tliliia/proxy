@@ -6,8 +6,9 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -38,11 +39,16 @@ public class DataServiceStackExchangeImpl implements DataService {
 
     @Override
     public SearchResult search(String query) {
+        if (StringUtils.isEmpty(query)) {
+            throw new IllegalArgumentException("Empty query string");
+        }
         try {
             URI uri = buildURI(query);
             return this.restTemplate.getForObject(uri, SearchResult.class);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Error on creation outer api uri." + e.getMessage());
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Error on access outer api." + e.getMessage());
         }
     }
 

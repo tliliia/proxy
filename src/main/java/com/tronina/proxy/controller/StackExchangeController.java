@@ -38,7 +38,7 @@ public class StackExchangeController {
                     .collect(Collectors.toList());
             return new ResponseEntity(outerResult, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
