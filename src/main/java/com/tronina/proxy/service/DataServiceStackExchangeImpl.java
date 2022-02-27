@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -14,7 +15,11 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Map;
 
-@Component
+/***
+ * Сервис получение ответа на запрос из стороннего источника
+ * api.stackexchange.com
+ */
+@Service
 public class DataServiceStackExchangeImpl implements DataService {
 
     private final String baseUrl;

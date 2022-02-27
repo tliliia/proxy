@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Рест контроллер для перенаправления запроса на стороннее апи
+ */
 @RestController
 public class StackExchangeController {
     private final DataService stackExchangeService;
