@@ -1,10 +1,11 @@
 package com.tronina.proxy.service;
 
-import com.tronina.proxy.model.SearchResult;
+import com.tronina.proxy.modelDto.SearchItemDto;
+import org.springframework.stereotype.Service;
 
-/***
- * Сервис получение ответа на запрос из стороннего источника
- */
+import java.util.List;
+
+@Service
 public interface DataService {
-    SearchResult search(String query);
+    List<SearchItemDto> search(String query);
 }
