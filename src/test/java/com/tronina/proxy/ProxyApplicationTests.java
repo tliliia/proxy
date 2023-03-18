@@ -1,60 +1,115 @@
 package com.tronina.proxy;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import com.tronina.proxy.modelDto.SearchItemDto;
-import com.tronina.proxy.service.DataService;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.extension.responsetemplating.ResponseTemplateTransformer;
+import com.github.tomakehurst.wiremock.http.Fault;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
-
-import java.util.List;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.jupiter.api.Assertions.*;
 
-@RunWith(SpringRunner.class)
+@AutoConfigureMockMvc
 @SpringBootTest
 public class ProxyApplicationTests {
 
-    public static final String TEST_URL = "/search";
-    public static final String INTITLE_PARAM = "intitle";
+    @Value("${basepath}")
+    private String basepath;
+    @Value("${baseurl}")
+    private String baseurl;
 
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(8080); // No-args constructor defaults to port 8080
+    public static final String API_PATH = "/queries";
+    public static final String QUERY = "TEST";
 
     @Autowired
-    private DataService dataService;
+    MockMvc mockMvc;
+
+    private WireMockServer wireMockServer;
+
+    final private MockHttpServletRequestBuilder request =
+            MockMvcRequestBuilders.get(API_PATH).queryParam("q", QUERY);
+
+    @BeforeEach
+    void init() {
+        wireMockServer = new WireMockServer(WireMockConfiguration.options()
+                .extensions(new ResponseTemplateTransformer(true))
+                .port(8088));
+        configureFor("localhost", 8080);
+        wireMockServer.start();
+    }
+
+    @AfterEach
+    void clear() {
+        wireMockServer.stop();
+    }
+
 
     @Test
-    public void searchOnEmpty() {
-        configureFor("localhost", 8080);
-        stubFor(
-                get(urlPathEqualTo(TEST_URL))
-                        .withQueryParam(INTITLE_PARAM, containing("java"))
-                        .willReturn(aResponse()
-                                .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                                .withBody("{\"items\":[]}")));
+    public void search() throws Exception {
+        wireMockServer.stubFor(get(urlPathMatching(basepath))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                        .withBodyFile("responce.json")));
 
-        List<SearchItemDto> result = dataService.search("java");
-        assertTrue(result.isEmpty());
+         mockMvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.jsonPath("$..title")
+                        .value("Screaming Frog Lighthouse Java Lang.IllegalStateException"));
     }
 
     @Test
-    public void search() {
-        configureFor("localhost", 8080);
-        stubFor(
-                get(urlPathEqualTo(TEST_URL))
-                        .withQueryParam(INTITLE_PARAM, containing("java"))
-                        .willReturn(aResponse()
-                                .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                                .withBodyFile("responce.json")));
-        List<SearchItemDto> result = dataService.search("java");
-        assertNotNull(result);
-        SearchItemDto searchItem = result.get(0);
-        assertEquals("Screaming Frog Lighthouse Java Lang.IllegalStateException", searchItem.getTitle());
+    void testValidation() throws Exception {
+        //given
+        wireMockServer.stubFor(get(urlPathMatching(basepath)).willReturn(ok()));
+
+        //when
+        final MockHttpServletRequestBuilder request = MockMvcRequestBuilders.get(API_PATH);
+
+        //then
+        mockMvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().is4xxClientError());
     }
+
+    @Test
+    void testThirdPartyServiceBadRequest() throws Exception {
+        //given
+        wireMockServer.stubFor(get(urlPathMatching(basepath)).willReturn(badRequest()));
+
+        //then
+        mockMvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().is5xxServerError());
+    }
+
+    @Test
+    void testThirdPartyServiceUnavailable() throws Exception {
+        //given
+        wireMockServer.stubFor(get(urlPathMatching(basepath)).willReturn(serviceUnavailable()));
+
+        //then
+        mockMvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().is5xxServerError());
+    }
+
+    @Test
+    void testHandleEmptyResult() throws Exception {
+        //given
+        wireMockServer.stubFor(get(urlPathMatching(basepath))
+                .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+
+        //then
+        mockMvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().is4xxClientError());
+    }
+
 }

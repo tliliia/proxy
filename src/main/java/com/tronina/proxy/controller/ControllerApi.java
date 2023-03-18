@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @RequestMapping("/queries")
@@ -26,6 +27,6 @@ public interface ControllerApi {
                     })
     })
     @GetMapping
-    ResponseEntity<List<SearchItemDto>> search(@Parameter(description = "search string") @RequestParam("q") String query);
+    ResponseEntity<List<SearchItemDto>> search(@Parameter(description = "search string") @NotNull @RequestParam("q") String query);
 
 }
